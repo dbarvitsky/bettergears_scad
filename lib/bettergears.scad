@@ -1,5 +1,5 @@
 include <MCAD\gears.scad>;
-$fn=30;
+$fn=60;
 
 
 function gear_params(number_of_teeth,
@@ -64,16 +64,22 @@ function involute_point(base_radius,t) =
 
 function involute_t(base_radius, r) =
     let ( r0 = r / base_radius )
-    sqrt(
-        (r0*r0 - 1) / PI
-    );
+    2 * sqrt( r0*r0 - 1) / PI
+;
 
-function involute_curve(base_radius,outer_radius,t=0.0) = 
+function involute_curve(base_radius,outer_radius,r=base_radius) =
+    let (t = involute_t(base_radius,r))
     let (p = involute_point(base_radius,t))
-    let (l = sqrt(p[0]*p[0]+p[1]*p[1]))
-    ( l <= outer_radius && t <= 1) 
+    ( r <= outer_radius) 
         ? 
-            concat(involute_curve(base_radius,outer_radius,t+1/$fn),[p]) 
+            concat(
+                involute_curve(
+                    base_radius,
+                    outer_radius,
+                    r+1/$fn
+                ),
+                [p]
+            ) 
         : [];
 
 function reverse(a,i=0) =
@@ -109,35 +115,46 @@ module involute_gear_tooth_(
     c = involute_curve(base_radius,outer_radius);
     
     c2 = mul2dSeq(c,m2);
-    
-    echo( involute_t(base_radius,outer_radius));
-
-    c1 = concat([p5],reverse(mul2dSeq(c,m2)),[p3,p2],mul2dSeq(c,m1),[p0]);
+    c1 = concat([p5],reverse(mul2dSeq(c,m2)),/*[p3,p2],*/mul2dSeq(c,m1),[p0]);
     polygon(c1);
+    echo(c1);
 
+}
+
+module ring(r,h=1,w=0.05){
+    difference() {
+        cylinder(h=h,r=r+w);
+        translate([0,0,-0.1]) cylinder(h=h+0.2,r=r);
+    }
 
 }
 
 module gear_p(params) {
     n = params[7];
-    circle(r=params[3]);
+    cylinder(r=params[3],h=1);
+    //ring(params[0]);
+    //ring(params[2]);
     for (i = [0:1:n])
         rotate([0,0,i*360/n])
-    involute_gear_tooth_(
-        pitch_radius=params[0],
-        root_radius=params[3],
-        base_radius=params[1],
-        outer_radius=params[2],
-        half_thick_angle=params[6]
-    );
+    linear_extrude(height=1) {
+        involute_gear_tooth_(
+            pitch_radius=params[0],
+            root_radius=params[3],
+            base_radius=params[1],
+            outer_radius=params[2],
+            half_thick_angle=params[6]
+        );
+    }
 }
 
-g = gear_params(number_of_teeth=10,diametral_pitch=8, pressure_angle=14.5,clearance=0); 
+g = gear_params(number_of_teeth=10,diametral_pitch=3, pressure_angle=14.5,clearance=0); 
 echo(g);
-linear_extrude(height=1) { 
-   rotate([0,0,-360*$t-180/10]) gear_p(g);
-   translate([g[0]*2,0,0]) rotate([0,0,360*$t]) gear_p(g);
-}
+
+   angle=-360*$t-180/10;
+   angle2=360*$t;
+    rotate([0,0,angle]) gear_p(g);
+   translate([g[0]*2,0,0]) rotate([0,0,angle2]) gear_p(g);
+
 
 /*
     involute_gear_tooth(
