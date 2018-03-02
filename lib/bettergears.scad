@@ -148,4 +148,3 @@ linear_extrude(height=1) {
         half_thick_angle=4.50
     );
 */
-
